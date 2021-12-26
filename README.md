@@ -11,6 +11,44 @@ Iterators for functions like `Filter`, `Map`, `Reduce`, `etc` solve 3 main probl
 2. Iterates over slice just once (without iterators in case chaining filter -> map -> reduce  iterates 3 times [1 time in each function])
 3. Iterator can be writen for any type you needed. So you can work with custom types (such a `List`, `Queue`, `etc` ) in same way
 
+### Examples:
+Filter -> Map -> Reduce:
+
+```
+iter := ft.SliceIter([]int{1,2,3,4})
+result := ft.Reduce(ft.Map(ft.Filter(iter, func(t int) bool {
+	return t%2 != 0
+}), func(t int) int {
+	return t * 2
+}), func(o string, t int) string {
+	return o + strconv.Itoa(t)
+})
+```
+
+Zip: 
+
+```
+iter1 := ft.SliceIter([]int{1,2,3})
+iter2 := ft.SliceIter([]string{"one", "two", "three")
+iter3 := ft.SliceIter([]float64{1.1, 2.2, 3.3)
+for _, p := range ft.Collect(ft.Zip(ft.Zip(iter1, iter2), iter3)) {
+	fmt.Println(p.First.First, p.First.Second, p.Second)
+}
+```
+
+Count:
+
+```
+iter := ft.SliceIter([]int{1,2,3)
+result := ft.Count(iter) // 3
+// with predicate
+iter2 := ft.SliceIter([]int{1,2,3})
+result := ft.Count(iter, func(t int) bool {
+    return t%2 == 0
+}) // 1
+
+```
+
 ### This package contains:
 
 ##### Functions:
