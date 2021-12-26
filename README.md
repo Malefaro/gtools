@@ -14,7 +14,7 @@ Iterators for functions like `Filter`, `Map`, `Reduce`, `etc` solve 3 main probl
 ### Examples:
 Filter -> Map -> Reduce:
 
-```
+```go
 iter := ft.SliceIter([]int{1,2,3,4})
 result := ft.Reduce(ft.Map(ft.Filter(iter, func(t int) bool {
 	return t%2 != 0
@@ -27,7 +27,7 @@ result := ft.Reduce(ft.Map(ft.Filter(iter, func(t int) bool {
 
 Zip: 
 
-```
+```go
 iter1 := ft.SliceIter([]int{1,2,3})
 iter2 := ft.SliceIter([]string{"one", "two", "three")
 iter3 := ft.SliceIter([]float64{1.1, 2.2, 3.3)
@@ -38,7 +38,7 @@ for _, p := range ft.Collect(ft.Zip(ft.Zip(iter1, iter2), iter3)) {
 
 Count:
 
-```
+```go
 iter := ft.SliceIter([]int{1,2,3)
 result := ft.Count(iter) // 3
 // with predicate
