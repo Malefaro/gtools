@@ -37,6 +37,7 @@ Iterators for functions like `Filter`, `Map`, `Reduce`, `etc` solve 3 main probl
 * `IntoChannel` - return channel that yields iterator elements (has optional arg context.Context)
 * `Max` - consumes iter and return max element find in it or nil if no such element
 * `Min` - same as `Max` but return min element
+* `Contains` - return true if iterator contains provided element
 
 ###### Iterator consctructors:
 * `SliceIter` - iterator over slice
