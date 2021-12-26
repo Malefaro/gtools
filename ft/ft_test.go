@@ -166,9 +166,9 @@ func TestCycle(t *testing.T) {
 	slice := []int{1, 2, 3}
 	iter := ft.Cycle(ft.SliceIter(slice))
 	for i := 0; i < 5; i++ {
-		next := iter.Next()
-		assert.NotNil(t, next)
-		assert.Equal(t, i%len(slice)+1, *next)
+		next, ok := iter.Next()
+		assert.True(t, ok)
+		assert.Equal(t, i%len(slice)+1, next)
 	}
 }
 
@@ -176,8 +176,8 @@ func TestCycle_Empty(t *testing.T) {
 	slice := []int{}
 	iter := ft.Cycle(ft.SliceIter(slice))
 	for i := 0; i < 5; i++ {
-		next := iter.Next()
-		assert.Nil(t, next)
+		_, ok := iter.Next()
+		assert.False(t, ok)
 	}
 }
 
@@ -405,12 +405,12 @@ func TestSliceIter(t *testing.T) {
 	f := func(input []int) {
 		iter := ft.SliceIter(input)
 		for i := 0; i < len(input); i++ {
-			next := iter.Next()
-			assert.NotNil(t, next)
-			assert.Equal(t, input[i], *next)
+			next, ok := iter.Next()
+			assert.True(t, ok)
+			assert.Equal(t, input[i], next)
 		}
-		next := iter.Next()
-		assert.Nil(t, next)
+		_, ok := iter.Next()
+		assert.False(t, ok)
 	}
 	f([]int{1, 2, 3, 4})
 	f([]int{1})
@@ -421,13 +421,13 @@ func TestMapIter(t *testing.T) {
 	f := func(input map[int]string) {
 		iter := ft.MapIter(input)
 		for range input {
-			next := iter.Next()
-			assert.NotNil(t, next)
+			next, ok := iter.Next()
+			assert.True(t, ok)
 			assert.Contains(t, input, next.Key)
 			assert.Equal(t, input[next.Key], next.Value)
 		}
-		next := iter.Next()
-		assert.Nil(t, next)
+		_, ok := iter.Next()
+		assert.False(t, ok)
 	}
 	f(map[int]string{1: "1", 2: "2", 3: "3"})
 	f(map[int]string{1: "1"})
@@ -438,15 +438,27 @@ func TestMapIterOverSlice(t *testing.T) {
 	f := func(input map[int]string) {
 		iter := ft.MapIterOverSlice(input)
 		for range input {
-			next := iter.Next()
-			assert.NotNil(t, next)
+			next, ok := iter.Next()
+			assert.True(t, ok)
 			assert.Contains(t, input, next.Key)
 			assert.Equal(t, input[next.Key], next.Value)
 		}
-		next := iter.Next()
-		assert.Nil(t, next)
+		_, ok := iter.Next()
+		assert.False(t, ok)
 	}
 	f(map[int]string{1: "1", 2: "2", 3: "3"})
 	f(map[int]string{1: "1"})
 	f(map[int]string{})
+}
+
+func TestContains(t *testing.T) {
+	f := func(input []int, val int, expected bool) {
+		iter := ft.SliceIter(input)
+		result := ft.Contains(iter, val)
+		assert.Equal(t, expected, result)
+	}
+	f([]int{}, 1, false)
+	f([]int{1}, 1, true)
+	f([]int{2, 1, 3}, 1, true)
+	f([]int{2, 4, 3}, 1, false)
 }

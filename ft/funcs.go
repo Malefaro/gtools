@@ -5,13 +5,14 @@ type filterIter[T any] struct {
 	f    func(T) bool
 }
 
-func (fi *filterIter[T]) Next() *T {
-	for next := fi.iter.Next(); next != nil; next = fi.iter.Next() {
-		if fi.f(*next) {
-			return next
+func (fi *filterIter[T]) Next() (T, bool) {
+	for next, ok := fi.iter.Next(); ok; next, ok = fi.iter.Next() {
+		if fi.f(next) {
+			return next, true
 		}
 	}
-	return nil
+	var t T
+	return t, false
 }
 
 func Filter[T any](iter Iter[T], f func(T) bool) Iter[T] {
@@ -26,13 +27,14 @@ type mapIter[T any, K any] struct {
 	mapper func(T) K
 }
 
-func (mi *mapIter[T, K]) Next() *K {
-	next := mi.iter.Next()
-	if next != nil {
-		n := mi.mapper(*next)
-		return &n
+func (mi *mapIter[T, K]) Next() (K, bool) {
+	next, ok := mi.iter.Next()
+	if ok {
+		n := mi.mapper(next)
+		return n, true
 	}
-	return nil
+	var k K
+	return k, false
 }
 
 func Map[T any, K any](iter Iter[T], mapper func(T) K) Iter[K] {
@@ -46,13 +48,13 @@ type reverseIter[T any] struct {
 	iter ReversibleIter[T]
 }
 
-func (fi *reverseIter[T]) Next() *T {
+func (fi *reverseIter[T]) Next() (T, bool) {
 	return fi.iter.Prev()
 }
 
 func Reverse[T any](iter ReversibleIter[T]) Iter[T] {
 	// go to last element
-	for next := iter.Next(); next != nil; next = iter.Next() {
+	for _, ok := iter.Next(); ok; _, ok = iter.Next() {
 	}
 	return &reverseIter[T]{
 		iter: iter,
@@ -61,8 +63,8 @@ func Reverse[T any](iter ReversibleIter[T]) Iter[T] {
 
 func Skip[T any](iter Iter[T], num int) Iter[T] {
 	for i := 0; i < num; i++ {
-		next := iter.Next()
-		if next == nil {
+		_, ok := iter.Next()
+		if !ok {
 			break
 		}
 	}
@@ -74,23 +76,24 @@ type chunkIter[T any, S ~[]T] struct {
 	size int
 }
 
-func (ci *chunkIter[T, S]) Next() *S {
+func (ci *chunkIter[T, S]) Next() (S, bool) {
 	s := make(S, 0, ci.size)
-	next := ci.iter.Next()
+	next, ok := ci.iter.Next()
 	for i := 0; i < ci.size; i++ {
-		if next == nil {
+		if !ok {
 			break
 		}
-		s = append(s, *next)
+		s = append(s, next)
 		if i != ci.size-1 {
 			// not last iteration
-			next = ci.iter.Next()
+			next, ok = ci.iter.Next()
 		}
 	}
 	if len(s) == 0 {
-		return nil
+		var s S
+		return s, false
 	}
-	return &s
+	return s, true
 }
 
 // Chunk split provided `iter` into several slices
@@ -108,13 +111,14 @@ type scanIter[T any, O any] struct {
 	lastResult O
 }
 
-func (si *scanIter[T, O]) Next() *O {
-	next := si.iter.Next()
-	if next == nil {
-		return nil
+func (si *scanIter[T, O]) Next() (O, bool) {
+	next, ok := si.iter.Next()
+	if !ok {
+		var o O
+		return o, false
 	}
-	si.lastResult = si.f(si.lastResult, *next)
-	return &si.lastResult
+	si.lastResult = si.f(si.lastResult, next)
+	return si.lastResult, true
 }
 
 // Scan same as reduce but instead of returning one result it return iterator of results at every step
@@ -134,7 +138,8 @@ type productIter[T ProductPair[F, S], F any, S any] struct {
 	iter2         Iter[S]
 	iter2elements []S
 	iter2stored   bool
-	prevFirst     *F
+	prevFirst     F
+	prevFlag      bool
 }
 
 type ProductPair[F any, S any] struct {
@@ -142,33 +147,38 @@ type ProductPair[F any, S any] struct {
 	Second S
 }
 
-func (pi *productIter[T, F, S]) Next() *T {
-	if pi.prevFirst == nil {
-		pi.prevFirst = pi.iter1.Next()
-		if pi.prevFirst == nil {
-			return nil
+func (pi *productIter[T, F, S]) Next() (T, bool) {
+	if !pi.prevFlag {
+		pi.prevFlag = true
+		var ok bool
+		pi.prevFirst, ok = pi.iter1.Next()
+		if !ok {
+			var t T
+			return t, false
 		}
 	}
-	s := pi.iter2.Next()
-	if s == nil {
+	s, ok := pi.iter2.Next()
+	if !ok {
 		pi.iter2stored = true
-		pi.prevFirst = pi.iter1.Next()
-		if pi.prevFirst == nil {
-			return nil
+		pi.prevFirst, ok = pi.iter1.Next()
+		if !ok {
+			var t T
+			return t, false
 		}
 		pi.iter2 = SliceIter(pi.iter2elements)
-		s = pi.iter2.Next()
-		if s == nil {
-			return nil
+		s, ok = pi.iter2.Next()
+		if !ok {
+			var t T
+			return t, false
 		}
 	}
 	if !pi.iter2stored {
-		pi.iter2elements = append(pi.iter2elements, *s)
+		pi.iter2elements = append(pi.iter2elements, s)
 	}
-	return &T{
-		First:  *pi.prevFirst,
-		Second: *s,
-	}
+	return T{
+		First:  pi.prevFirst,
+		Second: s,
+	}, true
 }
 
 // Product make cartesian product of input iters.
@@ -195,20 +205,21 @@ type cycleIter[T any] struct {
 	elementsStored bool
 }
 
-func (ci *cycleIter[T]) Next() *T {
-	next := ci.iter.Next()
-	if next == nil {
+func (ci *cycleIter[T]) Next() (T, bool) {
+	next, ok := ci.iter.Next()
+	if !ok {
 		ci.elementsStored = true
 		ci.iter = SliceIter(ci.savedElements)
-		next = ci.iter.Next()
-		if next == nil {
-			return nil
+		next, ok = ci.iter.Next()
+		if !ok {
+			var t T
+			return t, false
 		}
 	}
 	if !ci.elementsStored {
-		ci.savedElements = append(ci.savedElements, *next)
+		ci.savedElements = append(ci.savedElements, next)
 	}
-	return next
+	return next, true
 }
 
 // Cycle returns iteror that produces same elements as `iter`
@@ -226,16 +237,16 @@ type zipIter[T ZipPair[F, S], F any, S any] struct {
 	iter2 Iter[S]
 }
 
-func (zi *zipIter[T, F, S]) Next() *T {
-	next1 := zi.iter1.Next()
-	next2 := zi.iter2.Next()
-	if next1 != nil && next2 != nil {
-		return &T{
-			First:  *next1,
-			Second: *next2,
-		}
+func (zi *zipIter[T, F, S]) Next() (T, bool) {
+	next1, ok1 := zi.iter1.Next()
+	next2, ok2 := zi.iter2.Next()
+	if ok1 && ok2 {
+		return T{
+			First:  next1,
+			Second: next2,
+		}, true
 	}
-	return nil
+	return T{}, false
 }
 
 type ZipPair[F any, S any] struct {
@@ -270,16 +281,16 @@ type enumerateIter[T any, R EnumeratePair[T]] struct {
 	idx  int
 }
 
-func (ei *enumerateIter[T, R]) Next() *R {
-	next := ei.iter.Next()
-	if next != nil {
+func (ei *enumerateIter[T, R]) Next() (R, bool) {
+	next, ok := ei.iter.Next()
+	if ok {
 		ei.idx++
-		return &R{
+		return R{
 			Idx:   ei.idx - 1,
-			Value: *next,
-		}
+			Value: next,
+		}, true
 	}
-	return nil
+	return R{}, false
 }
 
 func Enumerate[T any, R EnumeratePair[T]](iter Iter[T], startFrom ...int) Iter[R] {

@@ -42,18 +42,18 @@ func CollectInto[T any, R FromIter[T]](iter Iter[T], r R) {
 // Collect consumes iter and return slice of iterator elements
 func Collect[T any](iter Iter[T]) []T {
 	result := make([]T, 0)
-	next := iter.Next()
-	for next != nil {
-		result = append(result, *next)
-		next = iter.Next()
+	next, ok := iter.Next()
+	for ok {
+		result = append(result, next)
+		next, ok = iter.Next()
 	}
 	return result
 }
 
 // Any consumes iter and returns true if any element of iter returns true on predicate func call on it
 func Any[T any](iter Iter[T], predicate func(T) bool) bool {
-	for next := iter.Next(); next != nil; next = iter.Next() {
-		if predicate(*next) {
+	for next, ok := iter.Next(); ok; next, ok = iter.Next() {
+		if predicate(next) {
 			return true
 		}
 	}
@@ -63,8 +63,8 @@ func Any[T any](iter Iter[T], predicate func(T) bool) bool {
 // All consumes iter and returns true if all elements returns true on predicate func call on it
 func All[T any](iter Iter[T], predicate func(T) bool) bool {
 	flag := false
-	for next := iter.Next(); next != nil; next = iter.Next() {
-		if !predicate(*next) {
+	for next, ok := iter.Next(); ok; next, ok = iter.Next() {
+		if !predicate(next) {
 			return false
 		}
 		flag = true
@@ -85,8 +85,8 @@ func Reduce[T any, O any](iter Iter[T], f func(O, T) O, initial ...O) O {
 	if len(initial) > 0 {
 		result = initial[0]
 	}
-	for next := iter.Next(); next != nil; next = iter.Next() {
-		result = f(result, *next)
+	for next, ok := iter.Next(); ok; next, ok = iter.Next() {
+		result = f(result, next)
 	}
 	return result
 }
@@ -94,7 +94,7 @@ func Reduce[T any, O any](iter Iter[T], f func(O, T) O, initial ...O) O {
 // Count cunsumes iter and returns count of iter elements
 // if optional argument `predicate` is provided count only if predicate returns true
 func Count[T any](iter Iter[T], predicate ...func(T) bool) int {
-	next := iter.Next()
+	next, ok := iter.Next()
 	cnt := 0
 	f := func(T) bool {
 		return true
@@ -102,11 +102,11 @@ func Count[T any](iter Iter[T], predicate ...func(T) bool) int {
 	if len(predicate) > 0 {
 		f = predicate[0]
 	}
-	for next != nil {
-		if f(*next) {
+	for ok {
+		if f(next) {
 			cnt++
 		}
-		next = iter.Next()
+		next, ok = iter.Next()
 	}
 	return cnt
 }
@@ -122,22 +122,22 @@ type Number interface {
 // work only with Numbers
 // if you need sum some custom types check Reduce func
 func Sum[T Number](iter Iter[T], initial ...T) T {
-	next := iter.Next()
+	next, ok := iter.Next()
 	var result T
 	if len(initial) > 0 {
 		result = initial[0]
 	}
-	for next != nil {
-		result += *next
-		next = iter.Next()
+	for ok {
+		result += next
+		next, ok = iter.Next()
 	}
 	return result
 }
 
 // ForEach consumes iter and calls func `f` on each element of iterator
 func ForEach[T any](iter Iter[T], f func(T)) {
-	for next := iter.Next(); next != nil; next = iter.Next() {
-		f(*next)
+	for next, ok := iter.Next(); ok; next, ok = iter.Next() {
+		f(next)
 	}
 }
 
@@ -160,18 +160,18 @@ func IntoChannel[T any](iter Iter[T], ctxArg ...context.Context) <-chan T {
 	go func() {
 		defer close(ch)
 		for {
-			next := iter.Next()
-			if next == nil {
+			next, ok := iter.Next()
+			if !ok {
 				return
 			}
 			if ctx != nil {
 				select {
 				case <-ctx.Done():
 					return
-				case ch <- *next:
+				case ch <- next:
 				}
 			} else {
-				ch <- *next
+				ch <- next
 			}
 		}
 	}()
@@ -181,14 +181,14 @@ func IntoChannel[T any](iter Iter[T], ctxArg ...context.Context) <-chan T {
 // Max consumes iterator and return maximum value find in it (or nil if iterator is empty)
 // `less` func compare two values and return true if a < b
 func Max[T any](iter Iter[T], less func(a T, b T) bool) *T {
-	next := iter.Next()
-	if next == nil {
+	next, ok := iter.Next()
+	if !ok {
 		return nil
 	}
-	max := *next
-	for next := iter.Next(); next != nil; next = iter.Next() {
-		if less(max, *next) {
-			max = *next
+	max := next
+	for next, ok := iter.Next(); ok; next, ok = iter.Next() {
+		if less(max, next) {
+			max = next
 		}
 	}
 	return &max
@@ -197,14 +197,14 @@ func Max[T any](iter Iter[T], less func(a T, b T) bool) *T {
 // Min consumes iterator and return minimum value find in it (or nil if iterator is empty)
 // `less` func compare two values and return true if a < b
 func Min[T any](iter Iter[T], less func(a T, b T) bool) *T {
-	next := iter.Next()
-	if next == nil {
+	next, ok := iter.Next()
+	if !ok {
 		return nil
 	}
-	min := *next
-	for next := iter.Next(); next != nil; next = iter.Next() {
-		if less(*next, min) {
-			min = *next
+	min := next
+	for next, ok := iter.Next(); ok; next, ok = iter.Next() {
+		if less(next, min) {
+			min = next
 		}
 	}
 	return &min

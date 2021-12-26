@@ -7,7 +7,7 @@ import (
 // Iter is the main interface for iterators
 type Iter[T any] interface {
 	// Next returns pointer to the next iterator element or nil if no more elements
-	Next() *T
+	Next() (T, bool)
 }
 
 // ReversibleIter interface for two direction iterators
@@ -16,7 +16,7 @@ type ReversibleIter[T any] interface {
 	// Prev returns previous element of iterator
 	// If it called after Next() its returns the same element as Next()
 	// (because after call Next() iterator moves forward and Prev bring it back to the same element)
-	Prev() *T
+	Prev() (T, bool)
 }
 
 // FromIter interface used for converting iterators into structs
@@ -30,23 +30,25 @@ type sliceIter[T any] struct {
 	idx  int
 }
 
-func (si *sliceIter[T]) Next() *T {
+func (si *sliceIter[T]) Next() (T, bool) {
 	if si.idx > len(si.data)-1 {
-		return nil
+		var t T
+		return t, false
 	}
 	si.idx++
-	return &si.data[si.idx-1]
+	return si.data[si.idx-1], true
 }
 
-func (si *sliceIter[T]) Prev() *T {
+func (si *sliceIter[T]) Prev() (T, bool) {
 	if si.idx > len(si.data)-1 {
 		si.idx = len(si.data)
 	}
 	if si.idx-1 < 0 {
-		return nil
+		var t T
+		return t, false
 	}
 	si.idx--
-	return &si.data[si.idx]
+	return si.data[si.idx], true
 }
 
 // SliceIter converts provided slice into iterator
@@ -64,24 +66,25 @@ type MapPair[K comparable, V any] struct {
 
 type hashMapIter[K comparable, V any, R MapPair[K, V]] struct {
 	data  map[K]V
-	pairs chan *R
+	pairs chan R
 }
 
 func (mi *hashMapIter[K, V, R]) processMap() {
 	for k, v := range mi.data {
-		mi.pairs <- &R{Key: k, Value: v}
+		mi.pairs <- R{Key: k, Value: v}
 	}
 	close(mi.pairs)
 }
 
-func (mi *hashMapIter[K, V, R]) Next() *R {
+func (mi *hashMapIter[K, V, R]) Next() (R, bool) {
 	next, ok := <-mi.pairs
 	if ok {
 		// channel not closed
-		return next
+		return next, true
 	} else {
 		// channel closed
-		return nil
+		var r R
+		return r, false
 	}
 }
 
@@ -92,7 +95,7 @@ func (mi *hashMapIter[K, V, R]) Next() *R {
 func MapIter[K comparable, V any, M ~map[K]V](m M) Iter[MapPair[K, V]] {
 	mi := &hashMapIter[K, V]{
 		data:  m,
-		pairs: make(chan *MapPair[K, V]),
+		pairs: make(chan MapPair[K, V]),
 	}
 	go mi.processMap()
 	return mi
