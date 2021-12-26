@@ -6,7 +6,7 @@ import (
 
 // Iter is the main interface for iterators
 type Iter[T any] interface {
-	// Next returns pointer to the next iterator element or nil if no more elements
+	// Next returns next iterator element. If no elements in iter return false bool flag
 	Next() (T, bool)
 }
 
