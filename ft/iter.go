@@ -93,7 +93,7 @@ func (mi *hashMapIter[K, V, R]) Next() (R, bool) {
 // To prevent goroutine leaks you must consume this iterator!
 // Also you can use MapIterOverSlice to not use goroutines
 func MapIter[K comparable, V any, M ~map[K]V](m M) Iter[MapPair[K, V]] {
-	mi := &hashMapIter[K, V]{
+	mi := &hashMapIter[K, V, MapPair[K, V]]{
 		data:  m,
 		pairs: make(chan MapPair[K, V]),
 	}

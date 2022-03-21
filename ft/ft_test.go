@@ -2,7 +2,7 @@ package ft_test
 
 import (
 	"context"
-	"functools/ft"
+	"gtools/ft"
 	"runtime"
 	"strconv"
 	"testing"
@@ -108,7 +108,7 @@ func TestSkip(t *testing.T) {
 func TestChunk(t *testing.T) {
 	f := func(input []int, expected [][]int, size int) {
 		iter := ft.SliceIter(input)
-		result := ft.Collect(ft.Chunk(iter, size))
+		result := ft.Collect(ft.Chunk[int, []int](iter, size))
 		assert.Equal(t, expected, result)
 	}
 	f([]int{1, 2, 3, 4, 5}, [][]int{{1, 2}, {3, 4}, {5}}, 2)
